@@ -10,3 +10,5 @@ altair==5.3.0
 
 notebook==7.2.0
 ipykernel==6.29.4
+
+requests ==2.31.0
