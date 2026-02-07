@@ -1,0 +1,7 @@
+.\.venv\Scripts\activate
+data/
+*.parquet
+*.csv
+__pycache__/
+.ipynb_checkpoints/
+.venv/
