@@ -32,6 +32,10 @@ def load_data():
     # Load raw parquet
     df = pl.read_parquet(str(data_path))
 
+    df = df.with_columns(
+    pl.col("tpep_pickup_datetime").dt.date().alias("pickup_date")
+    )
+
     df = df.with_columns([
     pl.col("tpep_pickup_datetime").cast(pl.Datetime, strict=False),
     pl.col("tpep_dropoff_datetime").cast(pl.Datetime, strict=False),

@@ -16,8 +16,8 @@ zones = zones.with_columns(
 
 def apply_filters(df, start_date, end_date, hour_min, hour_max, payments):
     filtered = df.filter(
-        (pl.col("tpep_pickup_datetime").dt.date() >= pl.lit(start_date)) &
-        (pl.col("tpep_pickup_datetime").dt.date() <= pl.lit(end_date)) &
+        (pl.col("pickup_date") >= pl.lit(start_date)) &
+        (pl.col("pickup_date") <= pl.lit(end_date)) &
         (pl.col("pickup_hour") >= hour_min) &
         (pl.col("pickup_hour") <= hour_max)
     )
@@ -116,6 +116,10 @@ filtered = apply_filters(
     hour_range[1],
     selected_payments,
 )
+
+if filtered.height == 0:
+    st.warning("No trips match your selected filters. Try widening the date range or hours.")
+    st.stop()
 
 st.sidebar.caption(f"Filtered trips: {filtered.height:,}")
 
