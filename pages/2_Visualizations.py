@@ -177,17 +177,18 @@ st.subheader("Distribution of Trip Distances")
 dist_cap = st.sidebar.slider("Max distance to display (miles)", 5, 100, 50)
 
 bin_size = 0.5
+
 hist = (
     filtered
     .filter(pl.col("trip_distance") <= dist_cap)
     .with_columns(
-        (pl.col("trip_distance") / bin_size).floor() * bin_size
-        .alias("bin")
+        (pl.floor(pl.col("trip_distance") / pl.lit(bin_size)) * pl.lit(bin_size)).alias("bin")
     )
     .group_by("bin")
     .agg(pl.len().alias("count"))
     .sort("bin")
 )
+
 rows = hist.select(["bin", "count"]).to_dicts()
 x = [r["bin"] for r in rows]
 y = [r["count"] for r in rows]
