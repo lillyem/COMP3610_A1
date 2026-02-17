@@ -3,26 +3,28 @@ import requests
 from pathlib import Path
 import streamlit as st
 
-RAW_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet"
+RAW_URL_TEMPLATE = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{ym}.parquet"
 LOOKUP_URL = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
 
 
 @st.cache_data(show_spinner="Downloading and preparing data...")
-def load_data():
+def load_data(year: int, month: int) -> pl.DataFrame:
     """
-    Downloads the NYC Yellow Taxi January 2024 dataset if missing,
-    performs required cleaning and feature engineering,
-    and returns a Polars DataFrame.
+    Downloads NYC Yellow Taxi data for the given year/month if missing,
+    cleans + feature engineers, and returns a Polars DataFrame.
     """
+
+    ym = f"{year:04d}-{month:02d}"
+    raw_url = RAW_URL_TEMPLATE.format(ym=ym)
 
     data_dir = Path("data/raw")
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    data_path = data_dir / "yellow_tripdata_2024-01.parquet"
+    data_path = data_dir / f"yellow_tripdata_{ym}.parquet"
 
     # Download if missing or empty
     if (not data_path.exists()) or (data_path.stat().st_size == 0):
-        with requests.get(RAW_URL, stream=True, timeout=120) as r:
+        with requests.get(raw_url, stream=True, timeout=180) as r:
             r.raise_for_status()
             with open(data_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024 * 1024):
@@ -32,22 +34,16 @@ def load_data():
     # Load raw parquet
     df = pl.read_parquet(str(data_path))
 
-    df = df.with_columns(
-    pl.col("tpep_pickup_datetime").dt.date().alias("pickup_date")
-    )
-
+    # Ensure datetimes
     df = df.with_columns([
-    pl.col("tpep_pickup_datetime").cast(pl.Datetime, strict=False),
-    pl.col("tpep_dropoff_datetime").cast(pl.Datetime, strict=False),
-    ])
-
-    df = df.with_columns([
+        pl.col("tpep_pickup_datetime").cast(pl.Datetime, strict=False),
+        pl.col("tpep_dropoff_datetime").cast(pl.Datetime, strict=False),
         pl.col("PULocationID").cast(pl.Int32),
         pl.col("DOLocationID").cast(pl.Int32),
         pl.col("payment_type").cast(pl.Int32),
     ])
 
-    # Cleaning 
+    # Cleaning
     df = df.filter(
         pl.col("tpep_pickup_datetime").is_not_null() &
         pl.col("tpep_dropoff_datetime").is_not_null() &
@@ -60,22 +56,15 @@ def load_data():
         (pl.col("tpep_dropoff_datetime") >= pl.col("tpep_pickup_datetime"))
     )
 
-    # Feature Engineering 
+    # Feature engineering
     df = df.with_columns([
-        # i) Trip duration in minutes
-        (
-            (pl.col("tpep_dropoff_datetime") - pl.col("tpep_pickup_datetime"))
-            .dt.total_seconds() / 60
-        ).alias("trip_duration_minutes"),
-
-        # k) Pickup hour
+        ((pl.col("tpep_dropoff_datetime") - pl.col("tpep_pickup_datetime")).dt.total_seconds() / 60)
+            .alias("trip_duration_minutes"),
         pl.col("tpep_pickup_datetime").dt.hour().alias("pickup_hour"),
-
-        # l) Pickup day of week
         pl.col("tpep_pickup_datetime").dt.strftime("%A").alias("pickup_day_of_week"),
+        pl.col("tpep_pickup_datetime").dt.date().alias("pickup_date"),  # ✅ key for date filtering
     ])
 
-    # j) Trip speed (must be after duration exists)
     df = df.with_columns([
         pl.when(pl.col("trip_duration_minutes") > 0)
         .then(pl.col("trip_distance") / (pl.col("trip_duration_minutes") / 60))
@@ -85,20 +74,14 @@ def load_data():
 
     return df
 
-@st.cache_data(show_spinner="Loading taxi zone lookup...")
-def load_lookup():
-    """
-    Ensures taxi_zone_lookup.csv exists locally.
-    Downloads it if missing.
-    Returns a Polars DataFrame.
-    """
 
+@st.cache_data(show_spinner="Loading taxi zone lookup...")
+def load_lookup() -> pl.DataFrame:
     lookup_dir = Path("data/raw")
     lookup_dir.mkdir(parents=True, exist_ok=True)
 
     lookup_path = lookup_dir / "taxi_zone_lookup.csv"
 
-    # Download if missing
     if not lookup_path.exists():
         r = requests.get(LOOKUP_URL, timeout=60)
         r.raise_for_status()

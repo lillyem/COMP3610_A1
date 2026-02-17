@@ -7,7 +7,12 @@ from utils import load_lookup
 
 st.title("Visualizations")
 
-df = load_data()
+# Sidebar: choose year/month
+year = st.sidebar.selectbox("Year", options=list(range(2022, 2025)), index=2)  # example defaults
+month = st.sidebar.selectbox("Month", options=list(range(1, 13)), index=0)     # Jan default
+
+df = load_data(year, month)
+
 zones = load_lookup()
 
 zones = zones.with_columns(
