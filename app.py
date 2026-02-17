@@ -11,11 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Sidebar: choose year/month
-year = st.sidebar.selectbox("Year", options=list(range(2022, 2025)), index=2)  # example defaults
-month = st.sidebar.selectbox("Month", options=list(range(1, 13)), index=0)     # Jan default
-
-st.title(f"NYC Yellow Taxi Dashboard ({year}-{month:02d})")
+st.title(f"NYC Yellow Taxi Dashboard (January 2024)")
 
 st.write(
     "This dashboard explores NYC Yellow Taxi trips for January 2024. "
@@ -23,7 +19,7 @@ st.write(
     "(busiest zones, fares by hour, payment types, tip %, and zone pairs)."
 )
 
-df = load_data(year, month)
+df = load_data()
 
 # Key Metrics 
 

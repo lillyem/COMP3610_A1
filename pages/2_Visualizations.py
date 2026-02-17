@@ -3,16 +3,12 @@ import polars as pl
 import plotly.graph_objects as go
 from utils import load_data
 from utils import load_lookup
+from datetime import date
 #from pathlib import Path
 
 st.title("Visualizations")
 
-# Sidebar: choose year/month
-year = st.sidebar.selectbox("Year", options=list(range(2022, 2025)), index=2)  # example defaults
-month = st.sidebar.selectbox("Month", options=list(range(1, 13)), index=0)     # Jan default
-
-df = load_data(year, month)
-
+df = load_data()
 zones = load_lookup()
 
 zones = zones.with_columns(
@@ -21,16 +17,21 @@ zones = zones.with_columns(
 
 def apply_filters(df, start_date, end_date, hour_min, hour_max, payments):
     filtered = df.filter(
-        (pl.col("pickup_date") >= pl.lit(start_date)) &
-        (pl.col("pickup_date") <= pl.lit(end_date)) &
+        (pl.col("tpep_pickup_datetime").dt.date() >= pl.lit(start_date)) &
+        (pl.col("tpep_pickup_datetime").dt.date() <= pl.lit(end_date)) &
         (pl.col("pickup_hour") >= hour_min) &
         (pl.col("pickup_hour") <= hour_max)
     )
+
     if payments:
         filtered = filtered.filter(pl.col("payment_type").is_in(payments))
     else:
         filtered = filtered.head(0)
+
     return filtered
+
+
+
 
 def top10_pickup(filtered, zones):
     return (
@@ -46,7 +47,7 @@ def top10_pickup(filtered, zones):
 # Sidebar filters
 st.sidebar.header("Filters")
 
-# Payment type mapping (define BEFORE the form)
+# Payment type mapping 
 PAYMENT_MAP = {
     0: "Unknown",
     1: "Credit Card",
@@ -66,11 +67,14 @@ min_date = min_dt.date()
 max_date = max_dt.date()
 
 with st.sidebar.form("filters_form"):
+    jan_start = date(2024, 1, 1)
+    jan_end = date(2024, 1, 31)
+
     date_range = st.date_input(
-        "Pickup date range",
-        value=(min_date, max_date),
-        min_value=min_date,
-        max_value=max_date,
+    "Pickup date range (January 2024 only)",
+    value=(jan_start, jan_end),
+    min_value=jan_start,
+    max_value=jan_end,
     )
 
     hour_range = st.slider("Pickup hour range", 0, 23, (0, 23))
@@ -85,7 +89,7 @@ with st.sidebar.form("filters_form"):
 
     apply_btn = st.form_submit_button("Apply filters")
 
-# Initialize applied filters (first load)
+# Initialize applied filters 
 if "applied_filters" not in st.session_state:
     st.session_state.applied_filters = {
         "date_range": (min_date, max_date),
@@ -103,7 +107,7 @@ if apply_btn:
         "dist_cap": dist_cap,
     }
 
-# Use the saved (applied) filters for the charts
+# Use the saved filters for the charts
 applied = st.session_state.applied_filters
 date_range = applied["date_range"]
 hour_range = applied["hour_range"]

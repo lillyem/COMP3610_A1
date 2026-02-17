@@ -5,12 +5,7 @@ from utils import load_data
 st.title("Overview")
 st.markdown("A quick look at the cleaned + feature-engineered NYC Yellow Taxi dataset (Jan 2024).")
 
-# Sidebar: choose year/month
-year = st.sidebar.selectbox("Year", options=list(range(2022, 2025)), index=2)  # example defaults
-month = st.sidebar.selectbox("Month", options=list(range(1, 13)), index=0)     # Jan default
-
-df = load_data(year, month)
-
+df = load_data()
 
 # Metrics
 st.subheader("Dataset at a Glance")

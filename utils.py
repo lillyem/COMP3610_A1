@@ -3,38 +3,27 @@ import requests
 from pathlib import Path
 import streamlit as st
 
-RAW_URL_TEMPLATE = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{ym}.parquet"
+RAW_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet"
 LOOKUP_URL = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
 
-
 @st.cache_data(show_spinner="Downloading and preparing data...")
-def load_data(year: int, month: int) -> pl.DataFrame:
-    """
-    Downloads NYC Yellow Taxi data for the given year/month if missing,
-    cleans + feature engineers, and returns a Polars DataFrame.
-    """
-
-    ym = f"{year:04d}-{month:02d}"
-    raw_url = RAW_URL_TEMPLATE.format(ym=ym)
-
+def load_data():
     data_dir = Path("data/raw")
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    data_path = data_dir / f"yellow_tripdata_{ym}.parquet"
+    data_path = data_dir / "yellow_tripdata_2024-01.parquet"
 
-    # Download if missing or empty
     if (not data_path.exists()) or (data_path.stat().st_size == 0):
-        with requests.get(raw_url, stream=True, timeout=180) as r:
+        with requests.get(RAW_URL, stream=True, timeout=120) as r:
             r.raise_for_status()
             with open(data_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024 * 1024):
                     if chunk:
                         f.write(chunk)
 
-    # Load raw parquet
     df = pl.read_parquet(str(data_path))
 
-    # Ensure datetimes
+    # Ensure datetimes + correct dtypes
     df = df.with_columns([
         pl.col("tpep_pickup_datetime").cast(pl.Datetime, strict=False),
         pl.col("tpep_dropoff_datetime").cast(pl.Datetime, strict=False),
@@ -58,11 +47,11 @@ def load_data(year: int, month: int) -> pl.DataFrame:
 
     # Feature engineering
     df = df.with_columns([
-        ((pl.col("tpep_dropoff_datetime") - pl.col("tpep_pickup_datetime")).dt.total_seconds() / 60)
-            .alias("trip_duration_minutes"),
+        ((pl.col("tpep_dropoff_datetime") - pl.col("tpep_pickup_datetime"))
+         .dt.total_seconds() / 60).alias("trip_duration_minutes"),
         pl.col("tpep_pickup_datetime").dt.hour().alias("pickup_hour"),
         pl.col("tpep_pickup_datetime").dt.strftime("%A").alias("pickup_day_of_week"),
-        pl.col("tpep_pickup_datetime").dt.date().alias("pickup_date"),  # ✅ key for date filtering
+        pl.col("tpep_pickup_datetime").dt.date().alias("pickup_date"),
     ])
 
     df = df.with_columns([
@@ -76,7 +65,7 @@ def load_data(year: int, month: int) -> pl.DataFrame:
 
 
 @st.cache_data(show_spinner="Loading taxi zone lookup...")
-def load_lookup() -> pl.DataFrame:
+def load_lookup():
     lookup_dir = Path("data/raw")
     lookup_dir.mkdir(parents=True, exist_ok=True)
 
