@@ -182,12 +182,16 @@ hist = (
     filtered
     .filter(pl.col("trip_distance") <= dist_cap)
     .with_columns(
-        (pl.floor(pl.col("trip_distance") / pl.lit(bin_size)) * pl.lit(bin_size)).alias("bin")
+        (
+            (pl.col("trip_distance") / pl.lit(bin_size))
+            .cast(pl.Int64) * pl.lit(bin_size)
+        ).alias("bin")
     )
     .group_by("bin")
     .agg(pl.len().alias("count"))
     .sort("bin")
 )
+
 
 rows = hist.select(["bin", "count"]).to_dicts()
 x = [r["bin"] for r in rows]
