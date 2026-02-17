@@ -76,5 +76,5 @@ The dashboard will open automatically in your browser.
 
 - Live Dashboard URL:
 
-(insert link here)
+[Deployed Streamlit link](https://comp3610a1-77csm9rbmdegvnfmkdfqmy.streamlit.app/)
 
