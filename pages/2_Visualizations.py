@@ -2,18 +2,10 @@ import streamlit as st
 import polars as pl
 import plotly.express as px
 from utils import load_data
-from pathlib import Path
+from utils import load_lookup
+#from pathlib import Path
 
 st.title("Visualizations")
-
-LOOKUP_PATH = Path("data/raw/taxi_zone_lookup.csv")
-
-@st.cache_data(show_spinner="Loading zone lookup...")
-def load_lookup():
-    if not LOOKUP_PATH.exists():
-        st.error("Lookup file not found. Ensure taxi_zone_lookup.csv exists in data/raw/")
-        st.stop()
-    return pl.read_csv(str(LOOKUP_PATH))
 
 df = load_data()
 zones = load_lookup()

@@ -4,6 +4,7 @@ from pathlib import Path
 import streamlit as st
 
 RAW_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet"
+LOOKUP_URL = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
 
 
 @st.cache_data(show_spinner="Downloading and preparing data...")
@@ -98,3 +99,24 @@ def load_data():
     ])
 
     return df
+
+@st.cache_data(show_spinner="Loading taxi zone lookup...")
+def load_lookup():
+    """
+    Ensures taxi_zone_lookup.csv exists locally.
+    Downloads it if missing.
+    Returns a Polars DataFrame.
+    """
+
+    lookup_dir = Path("data/raw")
+    lookup_dir.mkdir(parents=True, exist_ok=True)
+
+    lookup_path = lookup_dir / "taxi_zone_lookup.csv"
+
+    # Download if missing
+    if not lookup_path.exists():
+        r = requests.get(LOOKUP_URL, timeout=60)
+        r.raise_for_status()
+        lookup_path.write_bytes(r.content)
+
+    return pl.read_csv(str(lookup_path))
