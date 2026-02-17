@@ -27,7 +27,6 @@ def apply_filters(df, start_date, end_date, hour_min, hour_max, payments):
         filtered = filtered.head(0)
     return filtered
 
-@st.cache_data
 def top10_pickup(filtered, zones):
     return (
         filtered.group_by("PULocationID")
