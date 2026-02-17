@@ -14,6 +14,32 @@ zones = zones.with_columns(
     pl.col("LocationID").cast(pl.Int32)
 )
 
+@st.cache_data
+def apply_filters(df, start_date, end_date, hour_min, hour_max, payments):
+    filtered = df.filter(
+        (pl.col("tpep_pickup_datetime").dt.date() >= pl.lit(start_date)) &
+        (pl.col("tpep_pickup_datetime").dt.date() <= pl.lit(end_date)) &
+        (pl.col("pickup_hour") >= hour_min) &
+        (pl.col("pickup_hour") <= hour_max)
+    )
+    if payments:
+        filtered = filtered.filter(pl.col("payment_type").is_in(payments))
+    else:
+        filtered = filtered.head(0)
+    return filtered
+
+@st.cache_data
+def top10_pickup(filtered, zones):
+    return (
+        filtered.group_by("PULocationID")
+        .agg(pl.len().alias("trip_count"))
+        .join(zones.select(["LocationID", "Zone", "Borough"]),
+              left_on="PULocationID", right_on="LocationID", how="left")
+        .with_columns((pl.col("Borough") + " - " + pl.col("Zone")).alias("pickup_zone_label"))
+        .sort("trip_count", descending=True)
+        .head(10)
+    )
+
 # Sidebar filters 
 
 st.sidebar.header("Filters")
@@ -57,20 +83,15 @@ selected_labels = st.sidebar.multiselect(
 selected_payments = [int(lbl.split(" - ")[0]) for lbl in selected_labels]
 
 
-# Apply payment filter 
-filtered = df.filter(
-    (pl.col("tpep_pickup_datetime").dt.date() >= pl.lit(date_range[0])) &
-    (pl.col("tpep_pickup_datetime").dt.date() <= pl.lit(date_range[1])) &
-    (pl.col("pickup_hour") >= hour_range[0]) &
-    (pl.col("pickup_hour") <= hour_range[1])
+# Filters
+filtered = apply_filters(
+    df,
+    date_range[0],
+    date_range[1],
+    hour_range[0],
+    hour_range[1],
+    selected_payments
 )
-
-if len(selected_payments) > 0:
-    filtered = filtered.filter(pl.col("payment_type").is_in(selected_payments))
-else:
-    st.warning("No payment types selected — showing 0 rows.")
-    filtered = filtered.head(0)
-
 
 st.sidebar.caption(f"Filtered trips: {filtered.height:,}")
 
@@ -95,17 +116,8 @@ st.divider()
 
 st.subheader("Top 10 Pickup Zones by Trip Count")
 
-top10_pu = (
-    filtered.group_by("PULocationID")
-    .agg(pl.len().alias("trip_count"))
-    .join(zones.select(["LocationID", "Zone", "Borough"]),
-          left_on="PULocationID", right_on="LocationID", how="left")
-    .with_columns(
-        (pl.col("Borough") + " - " + pl.col("Zone")).alias("pickup_zone_label")
-    )
-    .sort("trip_count", descending=True)
-    .head(10)
-)
+top10_pu = top10_pickup(filtered, zones)
+
 
 fig_r = px.bar(
     top10_pu.to_pandas(),
@@ -160,15 +172,20 @@ st.subheader("Distribution of Trip Distances")
 # Capping outliers so the histogram is readable
 dist_cap = st.sidebar.slider("Max distance to display (miles)", 5, 100, 50)
 
-dist_df = filtered.filter(pl.col("trip_distance") <= dist_cap)
-
-fig_t = px.histogram(
-    dist_df.to_pandas(),
-    x="trip_distance",
-    nbins=50,
-    title=f"Trip Distance Distribution (0–{dist_cap} miles)",
-    labels={"trip_distance": "Trip Distance (miles)"},
+bin_size = 0.5
+hist = (
+    filtered
+    .filter(pl.col("trip_distance") <= dist_cap)
+    .with_columns(
+        (pl.col("trip_distance") / bin_size).floor() * bin_size
+        .alias("bin")
+    )
+    .group_by("bin")
+    .agg(pl.len().alias("count"))
+    .sort("bin")
 )
+fig_t = px.bar(hist.to_pandas(), x="bin", y="count")
+
 st.plotly_chart(fig_t, use_container_width=True)
 
 st.caption(
