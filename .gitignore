@@ -1,7 +1,9 @@
-.\.venv\Scripts\activate
+# Virtual environment
+.venv/
+
+# Data directory
 data/
-*.parquet
-*.csv
+
+# Python cache
 __pycache__/
 .ipynb_checkpoints/
-.venv/
