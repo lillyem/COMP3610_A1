@@ -1,6 +1,6 @@
 import streamlit as st
 import polars as pl
-import plotly.express as px
+import plotly.graph_objects as go
 from utils import load_data
 from utils import load_lookup
 #from pathlib import Path
@@ -119,14 +119,17 @@ st.subheader("Top 10 Pickup Zones by Trip Count")
 top10_pu = top10_pickup(filtered, zones)
 
 
-fig_r = px.bar(
-    top10_pu.to_pandas(),
-    x="pickup_zone_label",
-    y="trip_count",
+rows = top10_pu.select(["pickup_zone_label", "trip_count"]).to_dicts()
+x = [r["pickup_zone_label"] for r in rows]
+y = [r["trip_count"] for r in rows]
+
+fig_r = go.Figure([go.Bar(x=x, y=y)])
+fig_r.update_layout(
     title="Top 10 Pickup Zones",
-    labels={"pickup_zone_label": "Pickup Zone", "trip_count": "Trips"},
+    xaxis_title="Pickup Zone",
+    yaxis_title="Trips",
+    xaxis_tickangle=-35,
 )
-fig_r.update_layout(xaxis_tickangle=-35)
 st.plotly_chart(fig_r, use_container_width=True)
 
 st.caption(
@@ -147,15 +150,18 @@ avg_fare_by_hour = (
     .sort("pickup_hour")
 )
 
-fig_s = px.line(
-    avg_fare_by_hour.to_pandas(),
-    x="pickup_hour",
-    y="avg_fare",
-    markers=True,
+rows = avg_fare_by_hour.select(["pickup_hour", "avg_fare"]).to_dicts()
+x = [r["pickup_hour"] for r in rows]
+y = [r["avg_fare"] for r in rows]
+
+fig_s = go.Figure([go.Scatter(x=x, y=y, mode="lines+markers")])
+fig_s.update_layout(
     title="Average Fare by Hour",
-    labels={"pickup_hour": "Hour of Day", "avg_fare": "Average Fare ($)"},
+    xaxis_title="Hour of Day",
+    yaxis_title="Average Fare ($)",
 )
 st.plotly_chart(fig_s, use_container_width=True)
+
 
 st.caption(
     "Average fares spike sharply around 5 AM, likely reflecting airport trips or longer early-morning rides. Fares are lowest between 2–4 AM, when demand and trip distances are typically shorter. A moderate increase in the evening suggests higher pricing during post-work and nightlife hours."
@@ -184,9 +190,18 @@ hist = (
     .agg(pl.len().alias("count"))
     .sort("bin")
 )
-fig_t = px.bar(hist.to_pandas(), x="bin", y="count")
+rows = hist.select(["bin", "count"]).to_dicts()
+x = [r["bin"] for r in rows]
+y = [r["count"] for r in rows]
 
+fig_t = go.Figure([go.Bar(x=x, y=y)])
+fig_t.update_layout(
+    title=f"Trip Distance Distribution (0–{dist_cap} miles)",
+    xaxis_title="Distance bin (miles)",
+    yaxis_title="Trips",
+)
 st.plotly_chart(fig_t, use_container_width=True)
+
 
 st.caption(
     "The vast majority of taxi trips are short-distance rides under 5 miles, indicating that taxis are primarily used for local travel within boroughs. The long right tail shows that longer trips do occur but are relatively rare, likely representing airport or inter-borough travel."
@@ -207,13 +222,14 @@ pay_breakdown = (
 )
 
 # Pie chart
-fig_u = px.pie(
-    pay_breakdown.to_pandas(),
-    names="payment_type_name",
-    values="trips",
-    title="Payment Type Share",
-)
+rows = pay_breakdown.select(["payment_type_name", "trips"]).to_dicts()
+labels = [r["payment_type_name"] for r in rows]
+values = [r["trips"] for r in rows]
+
+fig_u = go.Figure([go.Pie(labels=labels, values=values)])
+fig_u.update_layout(title="Payment Type Share")
 st.plotly_chart(fig_u, use_container_width=True)
+
 
 st.caption(
     "Credit card payments account for roughly 80% of all trips, showing a strong shift toward digital payments in NYC taxis. Cash represents a much smaller share, while disputes and no-charge trips are extremely rare. This suggests modern taxi usage is largely cashless."
@@ -234,22 +250,22 @@ dow_hour = (
     .agg(pl.len().alias("trips"))
 )
 
-# Convert to pandas for Plotly heatmap pivot
-dow_hour_pd = dow_hour.to_pandas()
+hours = list(range(24))
 
-# Pivot for heatmap matrix
-pivot = dow_hour_pd.pivot(index="pickup_day_of_week", columns="pickup_hour", values="trips").fillna(0)
+rows = dow_hour.select(["pickup_day_of_week", "pickup_hour", "trips"]).to_dicts()
+lookup = {(r["pickup_day_of_week"], r["pickup_hour"]): r["trips"] for r in rows}
 
-# Reindex day order
-pivot = pivot.reindex(day_order)
+z = [[lookup.get((d, h), 0) for h in hours] for d in day_order]
 
-fig_v = px.imshow(
-    pivot,
-    aspect="auto",
+fig_v = go.Figure(data=go.Heatmap(z=z, x=hours, y=day_order))
+fig_v.update_layout(
     title="Trips by Day of Week and Hour",
-    labels=dict(x="Hour of Day", y="Day of Week", color="Trips"),
+    xaxis_title="Hour of Day",
+    yaxis_title="Day of Week",
 )
+
 st.plotly_chart(fig_v, use_container_width=True)
+
 
 st.caption(
     "Weekdays show clear commuting peaks in the morning around 8–9 AM and late afternoon around 4–6 PM, reflecting work-related travel. Weekend demand shifts toward later hours, particularly Friday and Saturday evenings, likely driven by social and nightlife activity. Early morning hours consistently show the lowest activity across all days."

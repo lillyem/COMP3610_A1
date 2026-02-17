@@ -36,7 +36,7 @@ with tab1:
     selected = st.multiselect("Pick numeric columns:", numeric_cols, default=default_cols)
 
     if selected:
-        st.dataframe(df.select(selected).describe().to_pandas(), use_container_width=True)
+        st.dataframe(df.select(selected).describe().to_arrow(), use_container_width=True)
     else:
         st.warning("Select at least one numeric column.")
 
@@ -46,7 +46,7 @@ with tab2:
 
     cols = st.multiselect("Columns to show:", df.columns, default=df.columns[:6])
     if cols:
-        st.dataframe(df.select(cols).head(n).to_pandas(), use_container_width=True)
+        st.dataframe(df.select(cols).head(n).to_arrow(), use_container_width=True)
     else:
         st.warning("Select at least one column.")
 
@@ -58,7 +58,8 @@ with tab3:
         "Non-Null": [(df.height - df[c].null_count()) for c in df.columns],
         "Null %": [round(df[c].null_count() / df.height * 100, 2) for c in df.columns],
     })
-    st.dataframe(info_df.to_pandas(), use_container_width=True)
+    st.dataframe(info_df.to_arrow(), use_container_width=True)
+
 
 st.divider()
 
@@ -77,7 +78,8 @@ with col1:
     ).filter(pl.col("Missing") > 0).sort("Missing", descending=True)
 
     if missing.height > 0:
-        st.dataframe(missing.to_pandas(), use_container_width=True)
+        st.dataframe(missing.to_arrow(), use_container_width=True)
+
     else:
         st.success("No missing values in this dataset.")
 
@@ -93,6 +95,6 @@ with col2:
                 "Min": df[c].min(),
                 "Max": df[c].max(),
             })
-        st.dataframe(pl.DataFrame(ranges).to_pandas(), use_container_width=True)
+        st.dataframe(pl.DataFrame(ranges).to_arrow(), use_container_width=True)
     else:
         st.info("No range-check columns found.")
