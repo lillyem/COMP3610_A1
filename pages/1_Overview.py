@@ -1,18 +1,9 @@
 import streamlit as st
 import polars as pl
-from pathlib import Path
+from utils import load_data
 
 st.title("Overview")
 st.markdown("A quick look at the cleaned + feature-engineered NYC Yellow Taxi dataset (Jan 2024).")
-
-DATA_PATH = Path("data/processed/taxi_cleaned_features.parquet")
-
-@st.cache_data
-def load_data():
-    if not DATA_PATH.exists():
-        st.error("Processed file not found. Export df_features to data/processed/taxi_cleaned_features.parquet first.")
-        st.stop()
-    return pl.read_parquet(str(DATA_PATH))
 
 df = load_data()
 

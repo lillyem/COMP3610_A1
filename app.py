@@ -1,5 +1,7 @@
 import streamlit as st
 import polars as pl
+import requests
+from utils import load_data
 from pathlib import Path
 
 st.set_page_config(
@@ -16,14 +18,6 @@ st.write(
     "(busiest zones, fares by hour, payment types, tip %, and zone pairs)."
 )
 
-DATA_PATH = Path("data/processed/taxi_cleaned_features.parquet")
-
-@st.cache_data
-def load_data():
-    if not DATA_PATH.exists():
-        st.error("Processed file not found. Export df_features to data/processed/taxi_cleaned_features.parquet first.")
-        st.stop()
-    return pl.read_parquet(str(DATA_PATH))
 
 df = load_data()
 

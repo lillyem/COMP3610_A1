@@ -1,19 +1,12 @@
 import streamlit as st
 import polars as pl
 import plotly.express as px
+from utils import load_data
 from pathlib import Path
 
 st.title("Visualizations")
 
-DATA_PATH = Path("data/processed/taxi_cleaned_features.parquet")
 LOOKUP_PATH = Path("data/raw/taxi_zone_lookup.csv")
-
-@st.cache_data(show_spinner="Loading data...")
-def load_data():
-    if not DATA_PATH.exists():
-        st.error("Processed file not found. Run the notebook export step to create data/processed/taxi_cleaned_features.parquet")
-        st.stop()
-    return pl.read_parquet(str(DATA_PATH))
 
 @st.cache_data(show_spinner="Loading zone lookup...")
 def load_lookup():
@@ -230,9 +223,6 @@ day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 dow_hour = (
     filtered.group_by(["pickup_day_of_week", "pickup_hour"])
     .agg(pl.len().alias("trips"))
-    .with_columns(
-        pl.col("pickup_day_of_week").cast(pl.Categorical).alias("dow_cat")
-    )
 )
 
 # Convert to pandas for Plotly heatmap pivot
