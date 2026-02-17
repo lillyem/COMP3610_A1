@@ -15,6 +15,8 @@ zones = zones.with_columns(
     pl.col("LocationID").cast(pl.Int32)
 )
 
+# Filters the dataset by selected date range, pickup hour range, and payment types.
+
 def apply_filters(df, start_date, end_date, hour_min, hour_max, payments):
     filtered = df.filter(
         (pl.col("tpep_pickup_datetime").dt.date() >= pl.lit(start_date)) &
@@ -31,7 +33,7 @@ def apply_filters(df, start_date, end_date, hour_min, hour_max, payments):
     return filtered
 
 
-
+# Groups trips by pickup location, counts them, joins zone details, and returns the top 10 busiest zones
 
 def top10_pickup(filtered, zones):
     return (
@@ -47,7 +49,7 @@ def top10_pickup(filtered, zones):
 # Sidebar filters
 st.sidebar.header("Filters")
 
-# Payment type mapping 
+# Payment type mapping so we see types instead of codes in the multiselect
 PAYMENT_MAP = {
     0: "Unknown",
     1: "Credit Card",
@@ -58,18 +60,24 @@ PAYMENT_MAP = {
     6: "Voided Trip",
 }
 
+# Get unique payment type codes from the dataset and sort them
 payment_codes = sorted([int(x) for x in df["payment_type"].unique().to_list()])
+
+# Create readable labels like "1 - Credit Card" for the sidebar filter
 payment_labels = [f"{code} - {PAYMENT_MAP.get(code, 'Other')}" for code in payment_codes]
 
+# Determine the full date range present in the dataset
 min_dt = df["tpep_pickup_datetime"].min()
 max_dt = df["tpep_pickup_datetime"].max()
 min_date = min_dt.date()
 max_date = max_dt.date()
 
+# Sidebar form to group filters so they only apply when the user clicks "Apply filters"
 with st.sidebar.form("filters_form"):
     jan_start = date(2024, 1, 1)
     jan_end = date(2024, 1, 31)
 
+    # Date range selector limited to January 2024
     date_range = st.date_input(
     "Pickup date range (January 2024 only)",
     value=(jan_start, jan_end),
@@ -77,16 +85,20 @@ with st.sidebar.form("filters_form"):
     max_value=jan_end,
     )
 
+    # Slider for pickup hour range
     hour_range = st.slider("Pickup hour range", 0, 23, (0, 23))
 
+    # Payment type multiselect filter
     selected_labels = st.multiselect(
         "Payment type",
         options=payment_labels,
         default=payment_labels,
     )
 
+    # Slider to cap maximum trip distance shown in histogram
     dist_cap = st.slider("Max distance to display (miles)", 5, 100, 50)
 
+    # Button that applies all selected filters at once
     apply_btn = st.form_submit_button("Apply filters")
 
 # Initialize applied filters 
@@ -141,7 +153,7 @@ if filtered.height > MAX_ROWS:
     )
     filtered = filtered.sample(n=MAX_ROWS, seed=42)
 
-# Helper: payment type names 
+# Payment type names 
 
 def payment_name_expr():
     return (
@@ -163,7 +175,6 @@ st.subheader("Top 10 Pickup Zones by Trip Count")
 
 top10_pu = top10_pickup(filtered, zones)
 
-
 rows = top10_pu.select(["pickup_zone_label", "trip_count"]).to_dicts()
 x = [r["pickup_zone_label"] for r in rows]
 y = [r["trip_count"] for r in rows]
@@ -181,9 +192,8 @@ st.caption(
     "Midtown Manhattan and Upper East Side zones dominate pickup activity, indicating strong demand in central business and residential areas. JFK and LaGuardia Airport also appear in the top 10, confirming that airport traffic is a major contributor to total NYC taxi volume."
 )
 
-
-
 st.divider()
+
 
 # s) Line chart: Average fare by hour of day
 
@@ -212,9 +222,8 @@ st.caption(
     "Average fares spike sharply around 5 AM, likely reflecting airport trips or longer early-morning rides. Fares are lowest between 2–4 AM, when demand and trip distances are typically shorter. A moderate increase in the evening suggests higher pricing during post-work and nightlife hours."
 )
 
-
-
 st.divider()
+
 
 # t) Histogram: Distribution of trip distances
 
@@ -257,7 +266,7 @@ st.caption(
 
 
 
-# u) Payment type breakdown (pie or bar)
+# u) Payment type breakdown 
 
 st.subheader("Payment Type Breakdown")
 

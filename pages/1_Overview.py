@@ -84,7 +84,7 @@ with col1:
         st.success("No missing values in this dataset.")
 
 with col2:
-    st.markdown("**Value Ranges (sanity check)**")
+    st.markdown("**Value Ranges**")
     range_cols = [c for c in ["fare_amount","trip_distance","tip_amount","passenger_count","trip_duration_minutes"] if c in df.columns]
 
     if range_cols:

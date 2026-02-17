@@ -15,9 +15,12 @@ st.title(f"NYC Yellow Taxi Dashboard (January 2024)")
 
 st.write(
     "This dashboard explores NYC Yellow Taxi trips for January 2024. "
-    "Use the sidebar pages to view an overview of the cleaned dataset and the SQL-based analyses "
+    "Use the sidebar pages to view an overview of the cleaned dataset "
     "(busiest zones, fares by hour, payment types, tip %, and zone pairs)."
 )
+
+# The dataset is programmatically downloaded and processed in utils.py,
+# where cleaning and feature engineering are applied prior to visualization.
 
 df = load_data()
 
