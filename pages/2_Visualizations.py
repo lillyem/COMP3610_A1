@@ -80,9 +80,31 @@ with st.sidebar.form("filters_form"):
 
     apply_btn = st.form_submit_button("Apply filters")
 
-# Stop until user clicks Apply (prevents reruns while dragging)
-if not apply_btn:
-    st.stop()
+# Initialize applied filters (first load)
+if "applied_filters" not in st.session_state:
+    st.session_state.applied_filters = {
+        "date_range": (min_date, max_date),
+        "hour_range": (0, 23),
+        "payments": payment_labels,
+        "dist_cap": 50,
+    }
+
+# When user clicks Apply, save what they chose
+if apply_btn:
+    st.session_state.applied_filters = {
+        "date_range": date_range,
+        "hour_range": hour_range,
+        "payments": selected_labels,
+        "dist_cap": dist_cap,
+    }
+
+# Use the saved (applied) filters for the charts
+applied = st.session_state.applied_filters
+date_range = applied["date_range"]
+hour_range = applied["hour_range"]
+selected_labels = applied["payments"]
+dist_cap = applied["dist_cap"]
+
 
 selected_payments = [int(lbl.split(" - ")[0]) for lbl in selected_labels]
 
@@ -185,9 +207,6 @@ st.divider()
 
 st.subheader("Distribution of Trip Distances")
 
-# Capping outliers so the histogram is readable
-dist_cap = st.sidebar.slider("Max distance to display (miles)", 5, 100, 50)
-
 bin_size = 0.5
 
 hist = (
@@ -199,6 +218,7 @@ hist = (
             .cast(pl.Int64) * pl.lit(bin_size)
         ).alias("bin")
     )
+    .with_columns(pl.col("bin").round(2))
     .group_by("bin")
     .agg(pl.len().alias("count"))
     .sort("bin")
