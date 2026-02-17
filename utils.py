@@ -32,35 +32,16 @@ def load_data():
     # Load raw parquet
     df = pl.read_parquet(str(data_path))
 
-    # Datetime handling 
-    pickup_dtype = df.schema.get("tpep_pickup_datetime")
-    dropoff_dtype = df.schema.get("tpep_dropoff_datetime")
-
-    def coerce_datetime(col: str) -> pl.Expr:
-        dtype = df.schema.get(col)
-
-        # already datetime, keep as is
-        if isinstance(dtype, pl.datatypes.Datetime):
-            return pl.col(col)
-
-        # string, parse
-        if dtype == pl.Utf8:
-            return pl.col(col).str.strptime(pl.Datetime, strict=False)
-
-        if dtype in (pl.Int64, pl.Int32):
-            return pl.from_epoch(pl.col(col), time_unit="us")
-
-        return pl.col(col).cast(pl.Datetime, strict=False)
+    df = df.with_columns([
+    pl.col("tpep_pickup_datetime").cast(pl.Datetime, strict=False),
+    pl.col("tpep_dropoff_datetime").cast(pl.Datetime, strict=False),
+    ])
 
     df = df.with_columns([
-    coerce_datetime("tpep_pickup_datetime").alias("tpep_pickup_datetime"),
-    coerce_datetime("tpep_dropoff_datetime").alias("tpep_dropoff_datetime"),
-
-    pl.col("PULocationID").cast(pl.Int32),
-    pl.col("DOLocationID").cast(pl.Int32),
-    pl.col("payment_type").cast(pl.Int32),
-])
-
+        pl.col("PULocationID").cast(pl.Int32),
+        pl.col("DOLocationID").cast(pl.Int32),
+        pl.col("payment_type").cast(pl.Int32),
+    ])
 
     # Cleaning 
     df = df.filter(

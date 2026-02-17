@@ -38,23 +38,10 @@ def top10_pickup(filtered, zones):
         .head(10)
     )
 
-# Sidebar filters 
-
+# Sidebar filters
 st.sidebar.header("Filters")
 
-min_dt = df["tpep_pickup_datetime"].min()
-max_dt = df["tpep_pickup_datetime"].max()
-
-date_range = st.sidebar.date_input(
-    "Pickup date range",
-    value=(min_dt.date(), max_dt.date()),
-    min_value=min_dt.date(),
-    max_value=max_dt.date(),
-)
-
-hour_range = st.sidebar.slider("Pickup hour range", 0, 23, (0, 23))
-
-# --- Payment type mapping (code -> name) ---
+# Payment type mapping (define BEFORE the form)
 PAYMENT_MAP = {
     0: "Unknown",
     1: "Credit Card",
@@ -65,34 +52,59 @@ PAYMENT_MAP = {
     6: "Voided Trip",
 }
 
-# Get available payment codes in the data as int
 payment_codes = sorted([int(x) for x in df["payment_type"].unique().to_list()])
-
-# Convert codes to display labels like "1 - Credit Card"
 payment_labels = [f"{code} - {PAYMENT_MAP.get(code, 'Other')}" for code in payment_codes]
 
-selected_labels = st.sidebar.multiselect(
-    "Payment type",
-    options=payment_labels,
-    default=payment_labels,   
-)
+min_dt = df["tpep_pickup_datetime"].min()
+max_dt = df["tpep_pickup_datetime"].max()
+min_date = min_dt.date()
+max_date = max_dt.date()
 
-# Convert selected labels back to numeric codes 
+with st.sidebar.form("filters_form"):
+    date_range = st.date_input(
+        "Pickup date range",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date,
+    )
+
+    hour_range = st.slider("Pickup hour range", 0, 23, (0, 23))
+
+    selected_labels = st.multiselect(
+        "Payment type",
+        options=payment_labels,
+        default=payment_labels,
+    )
+
+    dist_cap = st.slider("Max distance to display (miles)", 5, 100, 50)
+
+    apply_btn = st.form_submit_button("Apply filters")
+
+# Stop until user clicks Apply (prevents reruns while dragging)
+if not apply_btn:
+    st.stop()
+
 selected_payments = [int(lbl.split(" - ")[0]) for lbl in selected_labels]
 
-
-# Filters
 filtered = apply_filters(
     df,
     date_range[0],
     date_range[1],
     hour_range[0],
     hour_range[1],
-    selected_payments
+    selected_payments,
 )
 
 st.sidebar.caption(f"Filtered trips: {filtered.height:,}")
 
+# Prevent crashing due to too much data in visualizations.
+MAX_ROWS = 300_000
+if filtered.height > MAX_ROWS:
+    st.warning(
+        f"Large result ({filtered.height:,} rows). "
+        f"Sampling {MAX_ROWS:,} rows for visualization."
+    )
+    filtered = filtered.sample(n=MAX_ROWS, seed=42)
 
 # Helper: payment type names 
 
@@ -237,7 +249,6 @@ st.plotly_chart(fig_u, use_container_width=True)
 st.caption(
     "Credit card payments account for roughly 80% of all trips, showing a strong shift toward digital payments in NYC taxis. Cash represents a much smaller share, while disputes and no-charge trips are extremely rare. This suggests modern taxi usage is largely cashless."
 )
-
 
 
 st.divider()
