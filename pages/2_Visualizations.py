@@ -14,7 +14,6 @@ zones = zones.with_columns(
     pl.col("LocationID").cast(pl.Int32)
 )
 
-@st.cache_data
 def apply_filters(df, start_date, end_date, hour_min, hour_max, payments):
     filtered = df.filter(
         (pl.col("tpep_pickup_datetime").dt.date() >= pl.lit(start_date)) &
