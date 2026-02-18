@@ -66,16 +66,22 @@ col5.metric(
 st.divider()
 st.subheader("Data Coverage")
 
-num_days = df["pickup_date"].n_unique()
-
-st.info(f"**Days covered:** {num_days} days (January 2024)")
-
 c1, c2 = st.columns(2)
+
+with c1:
+    num_days = df["pickup_date"].n_unique()
+    st.info(f"**Days covered:** {num_days} days (January 2024)")
 
 with c2:
     PAYMENT_MAP = {
         0: "Unknown", 1: "Credit Card", 2: "Cash", 3: "No Charge",
         4: "Dispute", 5: "Unknown", 6: "Voided Trip"
     }
-    top_payment_code = int(df["payment_type"].value_counts().sort("count", descending=True)["payment_type"][0])
-    st.info(f"**Most common payment:** {top_payment_code} - {PAYMENT_MAP.get(top_payment_code, 'Other')}")
+    top_payment_code = int(
+        df["payment_type"]
+        .value_counts()
+        .sort("count", descending=True)["payment_type"][0]
+    )
+    st.info(
+        f"**Most common payment:** {top_payment_code} - {PAYMENT_MAP.get(top_payment_code, 'Other')}"
+    )
