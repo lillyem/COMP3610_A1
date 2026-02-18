@@ -60,6 +60,12 @@ def load_data() -> pl.DataFrame:
         (pl.col("tpep_dropoff_datetime") >= pl.col("tpep_pickup_datetime"))
     )
 
+    # Keep ONLY January 2024 pickups
+    df = df.filter(
+    (pl.col("tpep_pickup_datetime") >= pl.datetime(2024, 1, 1)) &
+    (pl.col("tpep_pickup_datetime") <  pl.datetime(2024, 2, 1))
+)
+
     # Feature engineering
     df = df.with_columns([
         ((pl.col("tpep_dropoff_datetime") - pl.col("tpep_pickup_datetime"))

@@ -66,12 +66,11 @@ col5.metric(
 st.divider()
 st.subheader("Data Coverage")
 
-min_date = df["tpep_pickup_datetime"].min()
-max_date = df["tpep_pickup_datetime"].max()
+num_days = df["pickup_date"].n_unique()
+
+st.info(f"**Days covered:** {num_days} days (January 2024)")
 
 c1, c2 = st.columns(2)
-with c1:
-    st.info(f"**Pickup datetime range:** {min_date} → {max_date}")
 
 with c2:
     PAYMENT_MAP = {
