@@ -1,8 +1,11 @@
 import streamlit as st
-import polars as pl
-import requests
 from utils import load_data
-from pathlib import Path
+
+with st.sidebar:
+    if st.button("Clear cache + rerun"):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
 
 st.set_page_config(
     page_title="NYC Yellow Taxi Dashboard (Jan 2024)",

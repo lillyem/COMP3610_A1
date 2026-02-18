@@ -6,22 +6,37 @@ import streamlit as st
 RAW_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet"
 LOOKUP_URL = "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
 
-@st.cache_data(show_spinner="Downloading and preparing data...")
-def load_data():
-    data_dir = Path("data/raw")
-    data_dir.mkdir(parents=True, exist_ok=True)
+DATA_DIR = Path("data/raw")
+PARQUET_PATH = DATA_DIR / "yellow_tripdata_2024-01.parquet"
+LOOKUP_PATH = DATA_DIR / "taxi_zone_lookup.csv"
 
-    data_path = data_dir / "yellow_tripdata_2024-01.parquet"
 
-    if (not data_path.exists()) or (data_path.stat().st_size == 0):
+def _ensure_data_files() -> None:
+    """Download raw files once (no caching). Keeps network + disk writes out of Streamlit cache."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Download trip parquet if missing/empty
+    if (not PARQUET_PATH.exists()) or (PARQUET_PATH.stat().st_size == 0):
         with requests.get(RAW_URL, stream=True, timeout=120) as r:
             r.raise_for_status()
-            with open(data_path, "wb") as f:
+            with open(PARQUET_PATH, "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024 * 1024):
                     if chunk:
                         f.write(chunk)
 
-    df = pl.read_parquet(str(data_path))
+    # Download lookup CSV if missing/empty
+    if (not LOOKUP_PATH.exists()) or (LOOKUP_PATH.stat().st_size == 0):
+        r = requests.get(LOOKUP_URL, timeout=60)
+        r.raise_for_status()
+        LOOKUP_PATH.write_bytes(r.content)
+
+
+@st.cache_data(show_spinner="Loading and preparing trip data...", ttl=60 * 60)
+def load_data() -> pl.DataFrame:
+    """Read parquet and do cleaning + feature engineering (cached)."""
+    _ensure_data_files()
+
+    df = pl.read_parquet(str(PARQUET_PATH))
 
     # Ensure datetimes + correct dtypes
     df = df.with_columns([
@@ -57,23 +72,15 @@ def load_data():
     df = df.with_columns([
         pl.when(pl.col("trip_duration_minutes") > 0)
         .then(pl.col("trip_distance") / (pl.col("trip_duration_minutes") / 60))
-        .otherwise(0)
+        .otherwise(None)  # use None instead of 0 so averages aren't skewed
         .alias("trip_speed_mph")
     ])
 
     return df
 
 
-@st.cache_data(show_spinner="Loading taxi zone lookup...")
-def load_lookup():
-    lookup_dir = Path("data/raw")
-    lookup_dir.mkdir(parents=True, exist_ok=True)
-
-    lookup_path = lookup_dir / "taxi_zone_lookup.csv"
-
-    if not lookup_path.exists():
-        r = requests.get(LOOKUP_URL, timeout=60)
-        r.raise_for_status()
-        lookup_path.write_bytes(r.content)
-
-    return pl.read_csv(str(lookup_path))
+@st.cache_data(show_spinner="Loading taxi zone lookup...", ttl=24 * 60 * 60)
+def load_lookup() -> pl.DataFrame:
+    """Load lookup table (cached)."""
+    _ensure_data_files()
+    return pl.read_csv(str(LOOKUP_PATH))
