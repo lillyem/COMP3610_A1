@@ -1,4 +1,12 @@
 import streamlit as st
+
+st.set_page_config(
+    page_title="NYC Yellow Taxi Dashboard (Jan 2024)",
+    page_icon="🚕",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
 from utils import load_data
 
 with st.sidebar:
@@ -7,12 +15,6 @@ with st.sidebar:
         st.cache_resource.clear()
         st.rerun()
 
-st.set_page_config(
-    page_title="NYC Yellow Taxi Dashboard (Jan 2024)",
-    page_icon="🚕",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
 st.title(f"NYC Yellow Taxi Dashboard (January 2024)")
 
