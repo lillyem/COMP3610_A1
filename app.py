@@ -45,10 +45,13 @@ col2.metric(
     f"${df['fare_amount'].mean():.2f}"
 )
 
+total_rev = df["total_amount"].sum()
+
 col3.metric(
     "Total Revenue",
-    f"${df['total_amount'].sum():,.2f}"
+    f"${total_rev/1_000_000:.2f}M"
 )
+
 
 col4.metric(
     "Average Distance",
